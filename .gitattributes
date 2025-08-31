@@ -1,0 +1,15 @@
+# Set default behavior to automatically normalize line endings
+* text=auto
+
+# Arduino files should use LF (Unix style)
+*.ino text eol=lf
+*.cpp text eol=lf
+*.h text eol=lf
+
+# Documentation files can use CRLF on Windows
+*.md text eol=crlf
+*.txt text eol=crlf
+
+# Binary files should not be modified
+*.bin binary
+*.hex binary 
