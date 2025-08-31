@@ -19,7 +19,7 @@ A powerful ESP32-S2 project that provides a web-based interface to control a USB
 - **USB Cable** (USB-C to USB-A or micro USB to USB-A)
 - **Computer** (Windows, macOS, or Linux)
 
-![ESP32-S2 Development Board](esp32s2.jpg)
+<img src="esp32s2.jpg" alt="ESP32-S2 Development Board" width="30%" />
 
 ## Software Requirements
 
