@@ -52,7 +52,7 @@ void handleRoot() {
                 "</style>"
                 "</head><body>"
                 "<div class='container'>"
-                "<h1>ESP32-S2 Hardware Reset Keyboard Control</h1>";
+                "<h1>Wake Any PC in Sleep Mode</h1>";
   
   // Live indicator
   html += "<div class='live-indicator'>LIVE - Last updated: " + String(millis() / 1000) + "s ago</div>";
