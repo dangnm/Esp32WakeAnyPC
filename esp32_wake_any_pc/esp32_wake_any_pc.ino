@@ -110,58 +110,6 @@ void handleRoot() {
   // Uptime
   html += "<div class='uptime'>Uptime: " + uptimeStr + "</div>";
   
-  // Info about how it works
-  html += "<div class='info'>"
-          "<strong>Hardware Reset Solution:</strong><br>"
-          "1. When computer sleeps, ESP32 USB HID gets completely stuck<br>"
-          "2. Software reset is not enough - need hardware reset<br>"
-          "3. Use 'Hardware Reset' button to restart ESP32 completely<br>"
-          "4. This is equivalent to unplugging and plugging back USB"
-          "</div>";
-  
-  // Warning if keyboard is not working
-  if (!keyboardReady) {
-    html += "<div class='warning'>"
-            "Keyboard not working after computer sleep/wake. Use 'Hardware Reset' button to fix!"
-            "</div>";
-  }
-  
-  // Status grid
-  html += "<div class='status-grid'>";
-  
-  // WiFi Status
-  String wifiClass = (WiFi.status() == WL_CONNECTED) ? "status-ok" : "status-error";
-  html += "<div class='" + wifiClass + "'>"
-          "<strong>WiFi Status:</strong> " + wifiStatus + "<br>"
-          "<strong>SSID:</strong> <span class='sensitive-info'>"
-          "<span class='hidden'>" + String(ssid) + "</span>"
-          "<span class='mask'>" + createMask(ssid) + "</span>"
-          "</span><br>"
-          "<strong>IP Address:</strong> <span class='sensitive-info'>"
-          "<span class='hidden'>" + WiFi.localIP().toString() + "</span>"
-          "<span class='mask'>" + createMask(WiFi.localIP().toString()) + "</span>"
-          "</span><br>"
-          "<strong>Signal:</strong> " + String(WiFi.RSSI()) + " dBm"
-          "</div>";
-  
-  // USB & Keyboard Status
-  String usbClass = usbConnected ? "status-ok" : "status-error";
-  String keyboardClass = keyboardReady ? "status-ok" : "status-error";
-  
-  html += "<div class='" + keyboardClass + "'>"
-          "<strong>USB Status:</strong> " + usbStatus + "<br>"
-          "<strong>Keyboard Status:</strong> " + keyboardStatus + "<br>"
-          "<strong>Last Activity:</strong> " + String((millis() - lastActivity) / 1000) + "s ago<br>"
-          "<strong>Reset Needed:</strong> " + (keyboardReady ? "No" : "Yes") +
-          "</div>";
-  
-  html += "</div>";
-  
-  // Hover hint for sensitive information
-  html += "<div style='text-align: center; color: #6c757d; font-size: 12px; margin: 10px 0;'>"
-          "<em>Hover over SSID and IP to reveal sensitive information</em>"
-          "</div>";
-  
   // QWERTY Keyboard
   html += "<div class='keyboard'>"
           "<h3 style='text-align: center; margin-bottom: 36px;'>Virtual QWERTY Keyboard</h3>";
@@ -380,11 +328,60 @@ void handleRoot() {
   
   html += "</div>";
   
-  // Control buttons
-  html += "<div style='text-align: center; margin: 20px 0;'>"
-          "<a href='/hardware-reset' class='button button-danger' style='text-decoration: none; display: inline-block;'>Hardware Reset ESP32</a>"
-          "<a href='/soft-reset' class='button button-warning' style='text-decoration: none; display: inline-block;'>Soft Reset USB</a>"
-          "<a href='/test' class='button' style='text-decoration: none; display: inline-block;'>Test Keyboard</a>"
+  // Status and System Information Section
+  html += "<div class='keyboard' style='margin-top: 30px;'>"
+          "<h3 style='text-align: center; margin-bottom: 30px;'>System Status & Information</h3>";
+  
+  // Info about how it works
+  html += "<div class='info'>"
+          "<strong>Hardware Reset Solution:</strong><br>"
+          "1. When computer sleeps, ESP32 USB HID gets completely stuck<br>"
+          "2. Software reset is not enough - need hardware reset<br>"
+          "3. Use 'Hardware Reset' button to restart ESP32 completely<br>"
+          "4. This is equivalent to unplugging and plugging back USB"
+          "</div>";
+  
+  // Warning if keyboard is not working
+  if (!keyboardReady) {
+    html += "<div class='warning'>"
+            "Keyboard not working after computer sleep/wake. Use 'Hardware Reset' button to fix!"
+            "</div>";
+  }
+  
+  // Status grid
+  html += "<div class='status-grid'>";
+  
+  // WiFi Status
+  String wifiClass = (WiFi.status() == WL_CONNECTED) ? "status-ok" : "status-error";
+  html += "<div class='" + wifiClass + "'>"
+          "<strong>WiFi Status:</strong> " + wifiStatus + "<br>"
+          "<strong>SSID:</strong> <span class='sensitive-info'>"
+          "<span class='hidden'>" + String(ssid) + "</span>"
+          "<span class='mask'>" + createMask(ssid) + "</span>"
+          "</span><br>"
+          "<strong>IP Address:</strong> <span class='sensitive-info'>"
+          "<span class='hidden'>" + WiFi.localIP().toString() + "</span>"
+          "<span class='mask'>" + createMask(WiFi.localIP().toString()) + "</span>"
+          "</span><br>"
+          "<strong>Signal:</strong> " + String(WiFi.RSSI()) + " dBm"
+          "</div>";
+  
+  // USB & Keyboard Status
+  String usbClass = usbConnected ? "status-ok" : "status-error";
+  String keyboardClass = keyboardReady ? "status-ok" : "status-error";
+  
+  html += "<div class='" + keyboardClass + "'>"
+          "<strong>USB Status:</strong> " + usbStatus + "<br>"
+          "<strong>Keyboard Status:</strong> " + keyboardStatus + "<br>"
+          "<strong>Last Activity:</strong> " + String((millis() - lastActivity) / 1000) + "s ago<br>"
+          "<strong>Reset Needed:</strong> " + (keyboardReady ? "No" : "Yes") +
+          "</div>";
+  
+  html += "</div>";
+  
+  // Hover hint for sensitive information
+  html += "<div style='text-align: center; color: #6c757d; font-size: 12px; margin: 10px 0;'>"
+          "<em>Hover over SSID and IP to reveal sensitive information</em>"
           "</div>";
   
   // Instructions
@@ -407,6 +404,15 @@ void handleRoot() {
           "<p><strong>CPU Frequency:</strong> " + String(ESP.getCpuFreqMHz()) + " MHz</p>"
           "<p><strong>WiFi Channel:</strong> " + String(WiFi.channel()) + "</p>"
           "<p><strong>USB Mode:</strong> HID with Hardware Reset Capability</p>"
+          "</div>";
+  
+  html += "</div>";
+  
+  // Control buttons
+  html += "<div style='text-align: center; margin: 20px 0;'>"
+          "<a href='/hardware-reset' class='button button-danger' style='text-decoration: none; display: inline-block;'>Hardware Reset ESP32</a>"
+          "<a href='/soft-reset' class='button button-warning' style='text-decoration: none; display: inline-block;'>Soft Reset USB</a>"
+          "<a href='/test' class='button' style='text-decoration: none; display: inline-block;'>Test Keyboard</a>"
           "</div>";
   
   // Last update info
