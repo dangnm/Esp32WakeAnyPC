@@ -25,7 +25,6 @@ void handleRoot() {
   
   String html = "<html><head>"
                 "<meta charset='UTF-8'>"
-                "<meta http-equiv='refresh' content='3'>"
                 "<style>"
                 "body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }"
                 ".container { max-width: 1000px; margin: 0 auto; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }"
@@ -47,14 +46,14 @@ void handleRoot() {
                 ".info { background: #e7f3ff; border: 1px solid #17a2b8; padding: 15px; border-radius: 5px; margin: 20px 0; }"
                 ".warning { background: #fff3cd; border: 1px solid #ffc107; padding: 15px; border-radius: 5px; margin: 20px 0; }"
                 ".danger { background: #f8d7da; border: 1px solid #dc3545; padding: 15px; border-radius: 5px; margin: 20px 0; }"
-                ".keyboard { background: #f8f9fa; border: 2px solid #dee2e6; border-radius: 10px; padding: 20px; margin: 20px 0; }"
-                ".keyboard-row { display: flex; justify-content: center; margin: 5px 0; }"
-                ".key { width: 50px; height: 50px; margin: 2px; border: 1px solid #adb5bd; border-radius: 8px; background: #ffffff; color: #495057; font-size: 14px; font-weight: bold; cursor: pointer; transition: all 0.2s; }"
+                ".keyboard { background: #f8f9fa; border: 2px solid #dee2e6; border-radius: 10px; padding: 36px; margin: 20px 0; }"
+                ".keyboard-row { display: flex; justify-content: center; margin: 8px 0; }"
+                ".key { width: 78px; height: 78px; margin: 4px; border: 1px solid #adb5bd; border-radius: 12px; background: #ffffff; color: #495057; font-size: 22px; font-weight: bold; cursor: pointer; transition: all 0.2s; }"
                 ".key:hover { background: #e9ecef; transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,0.1); }"
                 ".key:active { transform: translateY(0); box-shadow: 0 2px 4px rgba(0,0,0,0.1); }"
-                ".key-wide { width: 80px; }"
-                ".key-extra-wide { width: 120px; }"
-                ".key-space { width: 400px; }"
+                ".key-wide { width: 125px; }"
+                ".key-extra-wide { width: 187px; }"
+                ".key-space { width: 624px; }"
                 ".key-special { background: #6c757d; color: white; }"
                 ".key-special:hover { background: #5a6268; }"
                 ".key-enter { background: #28a745; color: white; }"
@@ -77,7 +76,7 @@ void handleRoot() {
   // Info about how it works
   html += "<div class='info'>"
           "<strong>Hardware Reset Solution:</strong><br>"
-          "1. When MacBook sleeps, ESP32 USB HID gets completely stuck<br>"
+          "1. When computer sleeps, ESP32 USB HID gets completely stuck<br>"
           "2. Software reset is not enough - need hardware reset<br>"
           "3. Use 'Hardware Reset' button to restart ESP32 completely<br>"
           "4. This is equivalent to unplugging and plugging back USB"
@@ -86,7 +85,7 @@ void handleRoot() {
   // Warning if keyboard is not working
   if (!keyboardReady) {
     html += "<div class='warning'>"
-            "Keyboard not working after MacBook sleep/wake. Use 'Hardware Reset' button to fix!"
+            "Keyboard not working after computer sleep/wake. Use 'Hardware Reset' button to fix!"
             "</div>";
   }
   
@@ -117,7 +116,7 @@ void handleRoot() {
   
   // QWERTY Keyboard
   html += "<div class='keyboard'>"
-          "<h3 style='text-align: center; margin-bottom: 20px;'>Virtual QWERTY Keyboard</h3>";
+          "<h3 style='text-align: center; margin-bottom: 36px;'>Virtual QWERTY Keyboard</h3>";
   
   // Row 1: Numbers
   html += "<div class='keyboard-row'>";
@@ -247,7 +246,7 @@ void handleRoot() {
   html += "<div style='background: #f8f9fa; padding: 15px; border-radius: 5px; margin: 20px 0;'>"
           "<h3>How to Fix Sleep Issues:</h3>"
           "<ol>"
-          "<li><strong>When MacBook wakes up</strong> and keyboard doesn't work</li>"
+          "<li><strong>When computer wakes up</strong> and keyboard doesn't work</li>"
           "<li><strong>Click 'Hardware Reset ESP32'</strong> button (restarts ESP32 completely)</li>"
           "<li><strong>Wait 10-15 seconds</strong> for ESP32 to restart</li>"
           "<li><strong>ESP32 will reconnect</strong> to WiFi automatically</li>"
@@ -265,9 +264,9 @@ void handleRoot() {
           "<p><strong>USB Mode:</strong> HID with Hardware Reset Capability</p>"
           "</div>";
   
-  // Auto-refresh info
+  // Last update info
   html += "<div style='text-align: center; color: #6c757d; font-size: 12px;'>"
-          "Page auto-refreshes every 3 seconds | Last update: " + String(millis() / 1000) + "s"
+          "Last update: " + String(millis() / 1000) + "s ago"
           "</div>";
   
   html += "<p><a href='/' class='button' style='text-decoration: none; display: inline-block;'>Manual Refresh</a></p>";
