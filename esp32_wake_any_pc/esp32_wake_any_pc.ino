@@ -3,6 +3,7 @@
 #include "USB.h"
 #include "USBHIDKeyboard.h"
 #include "esp_sleep.h"
+#include "Preferences.h"
 #include "wifi_config.h"
 
 WebServer server(80);
@@ -13,6 +14,15 @@ bool usbConnected = false;
 bool keyboardReady = false;
 unsigned long startTime = 0;
 unsigned long lastActivity = 0;
+
+// Macro recording variables
+Preferences preferences;
+bool isRecording = false;
+bool isPlaying = false;
+String recordedKeys = "";
+int currentKeyIndex = 0;
+unsigned long lastKeyTime = 0;
+const int KEY_DELAY = 100; // Delay between keys when playing back
 
 void handleRoot() {
   String wifiStatus = WiFi.status() == WL_CONNECTED ? "Connected" : "Disconnected";
@@ -235,6 +245,59 @@ void handleRoot() {
   
   html += "</div>";
   
+  // Macro Recording Interface
+  html += "<div class='keyboard' style='margin-top: 30px;'>"
+          "<h3 style='text-align: center; margin-bottom: 30px;'>Macro Recording & Playback</h3>";
+  
+  // Recording status
+  String recordingStatus = isRecording ? "🔴 RECORDING" : "⚪ Not Recording";
+  String recordingClass = isRecording ? "status-error" : "status-ok";
+  html += "<div class='" + recordingClass + "' style='text-align: center; padding: 15px; margin: 20px 0;'>"
+          "<strong>Recording Status:</strong> " + recordingStatus + "<br>";
+  if (recordedKeys.length() > 0) {
+    html += "<strong>Recorded Keys:</strong> " + String(recordedKeys.length()) + " keys<br>";
+    html += "<strong>Preview:</strong> " + recordedKeys.substring(0, 50) + (recordedKeys.length() > 50 ? "..." : "");
+  } else {
+    html += "<strong>No macro recorded yet</strong>";
+  }
+  html += "</div>";
+  
+  // Macro control buttons
+  html += "<div style='text-align: center; margin: 20px 0;'>";
+  
+  if (!isRecording) {
+    html += "<button onclick='startRecording()' class='button button-danger' style='margin: 10px;'>🔴 Start Recording</button>";
+  } else {
+    html += "<button onclick='stopRecording()' class='button button-success' style='margin: 10px;'>⏹️ Stop Recording</button>";
+  }
+  
+  if (recordedKeys.length() > 0 && !isRecording && !isPlaying) {
+    html += "<button onclick='playMacro()' class='button button-success' style='margin: 10px;'>▶️ Play Macro</button>";
+    html += "<button onclick='clearMacro()' class='button button-warning' style='margin: 10px;'>🗑️ Clear Macro</button>";
+  }
+  
+  if (isPlaying) {
+    html += "<div class='status-warning' style='padding: 15px; margin: 20px 0; text-align: center;'>"
+            "🎬 Playing macro... Please wait</div>";
+  }
+  
+  html += "</div>";
+  
+  // Instructions
+  html += "<div style='background: #f8f9fa; padding: 15px; border-radius: 5px; margin: 20px 0;'>"
+          "<h4>How to use Macro Recording:</h4>"
+          "<ol>"
+          "<li><strong>Start Recording:</strong> Click 'Start Recording' button</li>"
+          "<li><strong>Type Keys:</strong> Use the virtual keyboard above to type your sequence</li>"
+          "<li><strong>Stop Recording:</strong> Click 'Stop Recording' when done</li>"
+          "<li><strong>Play Macro:</strong> Click 'Play Macro' to replay the sequence</li>"
+          "<li><strong>Clear Macro:</strong> Click 'Clear Macro' to delete the recording</li>"
+          "</ol>"
+          "<p><em>Note: Macros are saved permanently and survive power cycles!</em></p>"
+          "</div>";
+  
+  html += "</div>";
+  
   // Control buttons
   html += "<div style='text-align: center; margin: 20px 0;'>"
           "<a href='/hardware-reset' class='button button-danger' style='text-decoration: none; display: inline-block;'>Hardware Reset ESP32</a>"
@@ -271,7 +334,7 @@ void handleRoot() {
   
   html += "<p><a href='/' class='button' style='text-decoration: none; display: inline-block;'>Manual Refresh</a></p>";
   
-  // JavaScript for sending keys
+  // JavaScript for sending keys and recording
   html += "<script>"
           "function sendKey(key) {"
           "  var form = document.createElement('form');"
@@ -284,6 +347,40 @@ void handleRoot() {
           "  form.appendChild(input);"
           "  document.body.appendChild(form);"
           "  form.submit();"
+          "}"
+          ""
+          "function startRecording() {"
+          "  var form = document.createElement('form');"
+          "  form.method = 'POST';"
+          "  form.action = '/start-record';"
+          "  document.body.appendChild(form);"
+          "  form.submit();"
+          "}"
+          ""
+          "function stopRecording() {"
+          "  var form = document.createElement('form');"
+          "  form.method = 'POST';"
+          "  form.action = '/stop-record';"
+          "  document.body.appendChild(form);"
+          "  form.submit();"
+          "}"
+          ""
+          "function playMacro() {"
+          "  var form = document.createElement('form');"
+          "  form.method = 'POST';"
+          "  form.action = '/play-macro';"
+          "  document.body.appendChild(form);"
+          "  form.submit();"
+          "}"
+          ""
+          "function clearMacro() {"
+          "  if(confirm('Are you sure you want to clear the recorded macro?')) {"
+          "    var form = document.createElement('form');"
+          "    form.method = 'POST';"
+          "    form.action = '/clear-macro';"
+          "    document.body.appendChild(form);"
+          "    form.submit();"
+          "  }"
           "}"
           "</script>";
   
@@ -315,6 +412,20 @@ void handlePress() {
       // Regular character
       Keyboard.write(key.charAt(0));
       Serial.println("Key '" + key + "' sent successfully");
+    }
+    
+    // Record the key if recording is active
+    if (isRecording) {
+      if (key == "BACKSPACE") {
+        recordedKeys += "[BACKSPACE]";
+      } else if (key == "ENTER") {
+        recordedKeys += "[ENTER]";
+      } else if (key == " ") {
+        recordedKeys += "[SPACE]";
+      } else {
+        recordedKeys += key;
+      }
+      Serial.println("Key recorded: " + key + " | Total: " + recordedKeys.length() + " chars");
     }
     
     // Update activity time
@@ -379,6 +490,60 @@ void handleTest() {
   }
 }
 
+// Start recording macro
+void handleStartRecord() {
+  if (keyboardReady) {
+    isRecording = true;
+    recordedKeys = "";
+    Serial.println("=== MACRO RECORDING STARTED ===");
+    
+    server.sendHeader("Location", "/?recording=started");
+    server.send(303);
+  } else {
+    server.send(200, "text/html", "<html><body><h1>Error</h1><p>Keyboard not ready! Use 'Hardware Reset ESP32' button first.</p><a href='/'>Back</a></body></html>");
+  }
+}
+
+// Stop recording macro
+void handleStopRecord() {
+  isRecording = false;
+  Serial.println("=== MACRO RECORDING STOPPED ===");
+  Serial.println("Recorded keys: " + recordedKeys);
+  
+  // Save to Preferences
+  preferences.putString("macro", recordedKeys);
+  Serial.println("Macro saved to Preferences");
+  
+  server.sendHeader("Location", "/?recording=stopped");
+  server.send(303);
+}
+
+// Play recorded macro
+void handlePlayMacro() {
+  if (keyboardReady && recordedKeys.length() > 0) {
+    isPlaying = true;
+    currentKeyIndex = 0;
+    lastKeyTime = millis();
+    Serial.println("=== PLAYING MACRO ===");
+    Serial.println("Macro: " + recordedKeys);
+    
+    server.sendHeader("Location", "/?playing=started");
+    server.send(303);
+  } else {
+    server.send(200, "text/html", "<html><body><h1>Error</h1><p>No macro recorded or keyboard not ready!</p><a href='/'>Back</a></body></html>");
+  }
+}
+
+// Clear recorded macro
+void handleClearMacro() {
+  recordedKeys = "";
+  preferences.remove("macro");
+  Serial.println("=== MACRO CLEARED ===");
+  
+  server.sendHeader("Location", "/?macro=cleared");
+  server.send(303);
+}
+
 // Test keyboard
 bool testKeyboard() {
   Serial.println("Testing keyboard functionality...");
@@ -417,6 +582,13 @@ void setup() {
   startTime = millis();
   lastActivity = millis();
   
+  // Initialize Preferences
+  preferences.begin("macro", false);
+  recordedKeys = preferences.getString("macro", "");
+  if (recordedKeys.length() > 0) {
+    Serial.println("Loaded saved macro: " + recordedKeys);
+  }
+  
   // Initialize USB HID
   USB.begin();
   delay(2000);
@@ -441,6 +613,10 @@ void setup() {
     
     server.on("/", handleRoot);
     server.on("/press", HTTP_POST, handlePress);
+    server.on("/start-record", HTTP_POST, handleStartRecord);
+    server.on("/stop-record", HTTP_POST, handleStopRecord);
+    server.on("/play-macro", HTTP_POST, handlePlayMacro);
+    server.on("/clear-macro", HTTP_POST, handleClearMacro);
     server.on("/hardware-reset", handleHardwareReset);
     server.on("/soft-reset", handleSoftReset);
     server.on("/test", handleTest);
@@ -460,4 +636,59 @@ void setup() {
 
 void loop() {
   server.handleClient();
+  
+  // Handle macro playback
+  if (isPlaying && recordedKeys.length() > 0 && currentKeyIndex < recordedKeys.length()) {
+    unsigned long currentTime = millis();
+    
+    if (currentTime - lastKeyTime >= KEY_DELAY) {
+      // Parse and send the next key
+      String currentKey = "";
+      int keyStart = currentKeyIndex;
+      
+      // Check for special keys
+      if (recordedKeys.substring(currentKeyIndex).startsWith("[BACKSPACE]")) {
+        currentKey = "BACKSPACE";
+        currentKeyIndex += 12; // Length of "[BACKSPACE]"
+      } else if (recordedKeys.substring(currentKeyIndex).startsWith("[ENTER]")) {
+        currentKey = "ENTER";
+        currentKeyIndex += 7; // Length of "[ENTER]"
+      } else if (recordedKeys.substring(currentKeyIndex).startsWith("[SPACE]")) {
+        currentKey = " ";
+        currentKeyIndex += 7; // Length of "[SPACE]"
+      } else {
+        currentKey = String(recordedKeys.charAt(currentKeyIndex));
+        currentKeyIndex++;
+      }
+      
+      // Send the key
+      if (currentKey == "BACKSPACE") {
+        Keyboard.press(KEY_BACKSPACE);
+        delay(10);
+        Keyboard.release(KEY_BACKSPACE);
+        Serial.println("Playing: BACKSPACE");
+      } else if (currentKey == "ENTER") {
+        Keyboard.press(KEY_RETURN);
+        delay(10);
+        Keyboard.release(KEY_RETURN);
+        Serial.println("Playing: ENTER");
+      } else if (currentKey == " ") {
+        Keyboard.press(' ');
+        delay(10);
+        Keyboard.release(' ');
+        Serial.println("Playing: SPACE");
+      } else {
+        Keyboard.write(currentKey.charAt(0));
+        Serial.println("Playing: " + currentKey);
+      }
+      
+      lastKeyTime = currentTime;
+      
+      // Check if playback is complete
+      if (currentKeyIndex >= recordedKeys.length()) {
+        isPlaying = false;
+        Serial.println("=== MACRO PLAYBACK COMPLETE ===");
+      }
+    }
+  }
 }
