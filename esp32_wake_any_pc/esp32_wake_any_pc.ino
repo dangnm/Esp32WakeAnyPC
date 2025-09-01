@@ -256,7 +256,7 @@ void handleRoot() {
           "<strong>Recording Status:</strong> " + recordingStatus + "<br>";
   if (recordedKeys.length() > 0) {
     html += "<strong>Recorded Keys:</strong> " + String(recordedKeys.length()) + " keys<br>";
-    html += "<strong>Preview:</strong> " + recordedKeys.substring(0, 50) + (recordedKeys.length() > 50 ? "..." : "");
+    html += "<strong>Status:</strong> Macro recorded (hidden for security)";
   } else {
     html += "<strong>No macro recorded yet</strong>";
   }
@@ -265,9 +265,9 @@ void handleRoot() {
   // Macro control buttons
   html += "<div style='text-align: center; margin: 20px 0;'>";
   
-  if (!isRecording) {
+  if (!isRecording && !isPlaying) {
     html += "<button onclick='startRecording()' class='button button-danger' style='margin: 10px;'>🔴 Start Recording</button>";
-  } else {
+  } else if (isRecording) {
     html += "<button onclick='stopRecording()' class='button button-success' style='margin: 10px;'>⏹️ Stop Recording</button>";
   }
   
@@ -277,8 +277,9 @@ void handleRoot() {
   }
   
   if (isPlaying) {
+    html += "<button onclick='stopPlaying()' class='button button-danger' style='margin: 10px;'>⏹️ Stop Playing</button>";
     html += "<div class='status-warning' style='padding: 15px; margin: 20px 0; text-align: center;'>"
-            "🎬 Playing macro... Please wait</div>";
+            "🎬 Playing macro... Click 'Stop Playing' to cancel</div>";
   }
   
   html += "</div>";
@@ -381,6 +382,14 @@ void handleRoot() {
           "    document.body.appendChild(form);"
           "    form.submit();"
           "  }"
+          "}"
+          ""
+          "function stopPlaying() {"
+          "  var form = document.createElement('form');"
+          "  form.method = 'POST';"
+          "  form.action = '/stop-playing';"
+          "  document.body.appendChild(form);"
+          "    form.submit();"
           "}"
           "</script>";
   
@@ -544,6 +553,16 @@ void handleClearMacro() {
   server.send(303);
 }
 
+// Stop playing macro
+void handleStopPlaying() {
+  isPlaying = false;
+  currentKeyIndex = 0;
+  Serial.println("=== MACRO PLAYBACK STOPPED ===");
+  
+  server.sendHeader("Location", "/?playing=stopped");
+  server.send(303);
+}
+
 // Test keyboard
 bool testKeyboard() {
   Serial.println("Testing keyboard functionality...");
@@ -616,6 +635,7 @@ void setup() {
     server.on("/start-record", HTTP_POST, handleStartRecord);
     server.on("/stop-record", HTTP_POST, handleStopRecord);
     server.on("/play-macro", HTTP_POST, handlePlayMacro);
+    server.on("/stop-playing", HTTP_POST, handleStopPlaying);
     server.on("/clear-macro", HTTP_POST, handleClearMacro);
     server.on("/hardware-reset", handleHardwareReset);
     server.on("/soft-reset", handleSoftReset);
