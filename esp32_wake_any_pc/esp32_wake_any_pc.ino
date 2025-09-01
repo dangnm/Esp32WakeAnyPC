@@ -3,9 +3,7 @@
 #include "USB.h"
 #include "USBHIDKeyboard.h"
 #include "esp_sleep.h"
-
-const char* ssid = "wifi_name";
-const char* password = "password";
+#include "wifi_config.h"
 
 WebServer server(80);
 USBHIDKeyboard Keyboard;
@@ -30,7 +28,7 @@ void handleRoot() {
                 "<meta http-equiv='refresh' content='3'>"
                 "<style>"
                 "body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }"
-                ".container { max-width: 800px; margin: 0 auto; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }"
+                ".container { max-width: 1000px; margin: 0 auto; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }"
                 ".status-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin: 20px 0; }"
                 ".status-ok { background: #d4edda; border-color: #28a745; }"
                 ".status-error { background: #f8d7da; border-color: #dc3545; }"
@@ -49,6 +47,22 @@ void handleRoot() {
                 ".info { background: #e7f3ff; border: 1px solid #17a2b8; padding: 15px; border-radius: 5px; margin: 20px 0; }"
                 ".warning { background: #fff3cd; border: 1px solid #ffc107; padding: 15px; border-radius: 5px; margin: 20px 0; }"
                 ".danger { background: #f8d7da; border: 1px solid #dc3545; padding: 15px; border-radius: 5px; margin: 20px 0; }"
+                ".keyboard { background: #f8f9fa; border: 2px solid #dee2e6; border-radius: 10px; padding: 20px; margin: 20px 0; }"
+                ".keyboard-row { display: flex; justify-content: center; margin: 5px 0; }"
+                ".key { width: 50px; height: 50px; margin: 2px; border: 1px solid #adb5bd; border-radius: 8px; background: #ffffff; color: #495057; font-size: 14px; font-weight: bold; cursor: pointer; transition: all 0.2s; }"
+                ".key:hover { background: #e9ecef; transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,0.1); }"
+                ".key:active { transform: translateY(0); box-shadow: 0 2px 4px rgba(0,0,0,0.1); }"
+                ".key-wide { width: 80px; }"
+                ".key-extra-wide { width: 120px; }"
+                ".key-space { width: 400px; }"
+                ".key-special { background: #6c757d; color: white; }"
+                ".key-special:hover { background: #5a6268; }"
+                ".key-enter { background: #28a745; color: white; }"
+                ".key-enter:hover { background: #218838; }"
+                ".key-backspace { background: #dc3545; color: white; }"
+                ".key-backspace:hover { background: #c82333; }"
+                ".key-disabled { background: #e9ecef; color: #adb5bd; cursor: not-allowed; }"
+                ".key-disabled:hover { background: #e9ecef; transform: none; box-shadow: none; }"
                 "</style>"
                 "</head><body>"
                 "<div class='container'>"
@@ -101,17 +115,129 @@ void handleRoot() {
   
   html += "</div>";
   
+  // QWERTY Keyboard
+  html += "<div class='keyboard'>"
+          "<h3 style='text-align: center; margin-bottom: 20px;'>Virtual QWERTY Keyboard</h3>";
+  
+  // Row 1: Numbers
+  html += "<div class='keyboard-row'>";
+  for (char c = '1'; c <= '9'; c++) {
+    html += "<button class='key' onclick='sendKey(\"" + String(c) + "\")'";
+    if (!keyboardReady) html += " disabled class='key key-disabled'";
+    html += ">" + String(c) + "</button>";
+  }
+  html += "<button class='key' onclick='sendKey(\"0\")'";
+  if (!keyboardReady) html += " disabled class='key key-disabled'";
+  html += ">0</button>";
+  html += "</div>";
+  
+  // Row 2: QWERTY
+  html += "<div class='keyboard-row'>";
+  html += "<button class='key' onclick='sendKey(\"q\")'";
+  if (!keyboardReady) html += " disabled class='key key-disabled'";
+  html += ">q</button>";
+  html += "<button class='key' onclick='sendKey(\"w\")'";
+  if (!keyboardReady) html += " disabled class='key key-disabled'";
+  html += ">w</button>";
+  html += "<button class='key' onclick='sendKey(\"e\")'";
+  if (!keyboardReady) html += " disabled class='key key-disabled'";
+  html += ">e</button>";
+  html += "<button class='key' onclick='sendKey(\"r\")'";
+  if (!keyboardReady) html += " disabled class='key key-disabled'";
+  html += ">r</button>";
+  html += "<button class='key' onclick='sendKey(\"t\")'";
+  if (!keyboardReady) html += " disabled class='key key-disabled'";
+  html += ">t</button>";
+  html += "<button class='key' onclick='sendKey(\"y\")'";
+  if (!keyboardReady) html += " disabled class='key key-disabled'";
+  html += ">y</button>";
+  html += "<button class='key' onclick='sendKey(\"u\")'";
+  if (!keyboardReady) html += " disabled class='key key-disabled'";
+  html += ">u</button>";
+  html += "<button class='key' onclick='sendKey(\"i\")'";
+  if (!keyboardReady) html += " disabled class='key key-disabled'";
+  html += ">i</button>";
+  html += "<button class='key' onclick='sendKey(\"o\")'";
+  if (!keyboardReady) html += " disabled class='key key-disabled'";
+  html += ">o</button>";
+  html += "<button class='key' onclick='sendKey(\"p\")'";
+  if (!keyboardReady) html += " disabled class='key key-disabled'";
+  html += ">p</button>";
+  html += "</div>";
+  
+  // Row 3: ASDFG
+  html += "<div class='keyboard-row'>";
+  html += "<button class='key' onclick='sendKey(\"a\")'";
+  if (!keyboardReady) html += " disabled class='key key-disabled'";
+  html += ">a</button>";
+  html += "<button class='key' onclick='sendKey(\"s\")'";
+  if (!keyboardReady) html += " disabled class='key key-disabled'";
+  html += ">s</button>";
+  html += "<button class='key' onclick='sendKey(\"d\")'";
+  if (!keyboardReady) html += " disabled class='key key-disabled'";
+  html += ">d</button>";
+  html += "<button class='key' onclick='sendKey(\"f\")'";
+  if (!keyboardReady) html += " disabled class='key key-disabled'";
+  html += ">f</button>";
+  html += "<button class='key' onclick='sendKey(\"g\")'";
+  if (!keyboardReady) html += " disabled class='key key-disabled'";
+  html += ">g</button>";
+  html += "<button class='key' onclick='sendKey(\"h\")'";
+  if (!keyboardReady) html += " disabled class='key key-disabled'";
+  html += ">h</button>";
+  html += "<button class='key' onclick='sendKey(\"j\")'";
+  if (!keyboardReady) html += " disabled class='key key-disabled'";
+  html += ">j</button>";
+  html += "<button class='key' onclick='sendKey(\"k\")'";
+  if (!keyboardReady) html += " disabled class='key key-disabled'";
+  html += ">k</button>";
+  html += "<button class='key' onclick='sendKey(\"l\")'";
+  if (!keyboardReady) html += " disabled class='key key-disabled'";
+  html += ">l</button>";
+  html += "</div>";
+  
+  // Row 4: ZXCVB
+  html += "<div class='keyboard-row'>";
+  html += "<button class='key' onclick='sendKey(\"z\")'";
+  if (!keyboardReady) html += " disabled class='key key-disabled'";
+  html += ">z</button>";
+  html += "<button class='key' onclick='sendKey(\"x\")'";
+  if (!keyboardReady) html += " disabled class='key key-disabled'";
+  html += ">x</button>";
+  html += "<button class='key' onclick='sendKey(\"c\")'";
+  if (!keyboardReady) html += " disabled class='key key-disabled'";
+  html += ">c</button>";
+  html += "<button class='key' onclick='sendKey(\"v\")'";
+  if (!keyboardReady) html += " disabled class='key key-disabled'";
+  html += ">v</button>";
+  html += "<button class='key' onclick='sendKey(\"b\")'";
+  if (!keyboardReady) html += " disabled class='key key-disabled'";
+  html += ">b</button>";
+  html += "<button class='key' onclick='sendKey(\"n\")'";
+  if (!keyboardReady) html += " disabled class='key key-disabled'";
+  html += ">n</button>";
+  html += "<button class='key' onclick='sendKey(\"m\")'";
+  if (!keyboardReady) html += " disabled class='key key-disabled'";
+  html += ">m</button>";
+  html += "</div>";
+  
+  // Row 5: Special keys
+  html += "<div class='keyboard-row'>";
+  html += "<button class='key key-backspace' onclick='sendKey(\"BACKSPACE\")'";
+  if (!keyboardReady) html += " disabled class='key key-disabled'";
+  html += ">⌫</button>";
+  html += "<button class='key key-space' onclick='sendKey(\" \")'";
+  if (!keyboardReady) html += " disabled class='key key-disabled'";
+  html += ">SPACE</button>";
+  html += "<button class='key key-enter' onclick='sendKey(\"ENTER\")'";
+  if (!keyboardReady) html += " disabled class='key key-disabled'";
+  html += ">↵</button>";
+  html += "</div>";
+  
+  html += "</div>";
+  
   // Control buttons
   html += "<div style='text-align: center; margin: 20px 0;'>"
-          "<form action='/press' method='POST' style='display: inline;'>"
-          "<button type='submit' class='button button-success'";
-  
-  if (!keyboardReady) {
-    html += " disabled";
-  }
-  
-  html += ">Send A Key</button>"
-          "</form>"
           "<a href='/hardware-reset' class='button button-danger' style='text-decoration: none; display: inline-block;'>Hardware Reset ESP32</a>"
           "<a href='/soft-reset' class='button button-warning' style='text-decoration: none; display: inline-block;'>Soft Reset USB</a>"
           "<a href='/test' class='button' style='text-decoration: none; display: inline-block;'>Test Keyboard</a>"
@@ -125,7 +251,7 @@ void handleRoot() {
           "<li><strong>Click 'Hardware Reset ESP32'</strong> button (restarts ESP32 completely)</li>"
           "<li><strong>Wait 10-15 seconds</strong> for ESP32 to restart</li>"
           "<li><strong>ESP32 will reconnect</strong> to WiFi automatically</li>"
-          "<li><strong>Try 'Send A Key'</strong> - should work now!</li>"
+          "<li><strong>Use the virtual keyboard</strong> - should work now!</li>"
           "</ol>"
           "<p><em>Note: Hardware Reset restarts ESP32 completely, equivalent to unplugging USB</em></p>"
           "</div>";
@@ -144,17 +270,53 @@ void handleRoot() {
           "Page auto-refreshes every 3 seconds | Last update: " + String(millis() / 1000) + "s"
           "</div>";
   
-  html += "<p><a href='/' class='button' style='text-decoration: none; display: inline-block;'>Manual Refresh</a></p>"
-          "</div></body></html>";
+  html += "<p><a href='/' class='button' style='text-decoration: none; display: inline-block;'>Manual Refresh</a></p>";
+  
+  // JavaScript for sending keys
+  html += "<script>"
+          "function sendKey(key) {"
+          "  var form = document.createElement('form');"
+          "  form.method = 'POST';"
+          "  form.action = '/press';"
+          "  var input = document.createElement('input');"
+          "  input.type = 'hidden';"
+          "  input.name = 'key';"
+          "  input.value = key;"
+          "  form.appendChild(input);"
+          "  document.body.appendChild(form);"
+          "  form.submit();"
+          "}"
+          "</script>";
+  
+  html += "</div></body></html>";
   
   server.send(200, "text/html", html);
 }
 
 void handlePress() {
   if (keyboardReady) {
-    // Type key A
-    Keyboard.write('a');
-    Serial.println("Key 'a' sent successfully");
+    String key = server.hasArg("key") ? server.arg("key") : "a";
+    
+    if (key == "BACKSPACE") {
+      Keyboard.press(KEY_BACKSPACE);
+      delay(10);
+      Keyboard.release(KEY_BACKSPACE);
+      Serial.println("Backspace key sent successfully");
+    } else if (key == "ENTER") {
+      Keyboard.press(KEY_RETURN);
+      delay(10);
+      Keyboard.release(KEY_RETURN);
+      Serial.println("Enter key sent successfully");
+    } else if (key == " ") {
+      Keyboard.press(' ');
+      delay(10);
+      Keyboard.release(' ');
+      Serial.println("Space key sent successfully");
+    } else {
+      // Regular character
+      Keyboard.write(key.charAt(0));
+      Serial.println("Key '" + key + "' sent successfully");
+    }
     
     // Update activity time
     lastActivity = millis();

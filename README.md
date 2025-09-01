@@ -69,13 +69,20 @@ A powerful ESP32-S2 project that provides a web-based interface to control a USB
 3. Place the `.ino` file inside this folder
 
 ### Step 2: Configure WiFi Settings
-1. Open `esp32_wake_any_pc.ino` in Arduino IDE
-2. Modify these lines with your WiFi credentials:
-   ```cpp
-   const char* ssid = "your_wifi_name";
-   const char* password = "your_wifi_password";
+1. **Copy the example configuration file:**
+   ```bash
+   cp wifi_config_example.h wifi_config.h
    ```
-3. Save the file
+
+2. **Edit `wifi_config.h` with your actual WiFi credentials:**
+   ```cpp
+   const char* ssid = "your_actual_wifi_name";
+   const char* password = "your_actual_wifi_password";
+   ```
+
+3. **Save the file** - this file contains your sensitive WiFi information
+
+**Note**: The `wifi_config.h` file is automatically ignored by git to protect your credentials
 
 ### Step 3: Install Required Libraries
 The project uses these built-in libraries (no additional installation needed):

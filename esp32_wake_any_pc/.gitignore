@@ -1,0 +1,22 @@
+# WiFi Configuration (contains sensitive data)
+wifi_config.h
+
+# Arduino IDE files
+*.hex
+*.elf
+*.bin
+*.map
+
+# Build output
+build/
+debug/
+
+# IDE specific files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS generated files
+.DS_Store
+Thumbs.db 
