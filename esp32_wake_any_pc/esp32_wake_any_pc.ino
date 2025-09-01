@@ -77,7 +77,7 @@ void initAPMode() {
   Serial.println("SSID: " + String(apSSID));
   Serial.println("IP: " + apIP.toString());
   Serial.println("Connect to WiFi: " + String(apSSID));
-  Serial.println("Then visit: http://192.168.1.1");
+  Serial.println("Captive portal will automatically open setup page");
 }
 
 // Initialize STA mode with saved credentials
@@ -130,6 +130,7 @@ void handleWiFiSetup() {
                 "<p><strong>ESP32 is running in Access Point mode</strong></p>"
                 "<p><strong>AP Name:</strong> " + String(apSSID) + "</p>"
                 "<p><strong>AP IP:</strong> " + apIP.toString() + "</p>"
+                "<p><strong>Captive Portal:</strong> Enabled (auto-open setup page)</p>"
                 "</div>"
                 ""
                 "<div class='steps'>"
@@ -137,6 +138,7 @@ void handleWiFiSetup() {
                 "<ol>"
                 "<li>Connect your device to WiFi: <strong>" + String(apSSID) + "</strong></li>"
                 "<li>Your device will get IP: <strong>192.168.1.2</strong> or similar</li>"
+                "<li><strong>Captive portal will automatically open this page!</strong></li>"
                 "<li>Fill in your WiFi details below</li>"
                 "<li>Click 'Connect to WiFi' to save and connect</li>"
                 "</ol>"
@@ -531,8 +533,14 @@ void handleRoot() {
   html += "<div style='text-align: center; margin: 20px 0;'>"
           "<a href='/hardware-reset' class='button button-danger' style='text-decoration: none; display: inline-block;'>Hardware Reset ESP32</a>"
           "<a href='/soft-reset' class='button button-warning' style='text-decoration: none; display: inline-block;'>Soft Reset USB</a>"
-          "<a href='/test' class='button' style='text-decoration: none; display: inline-block;'>Test Keyboard</a>"
-          "</div>";
+          "<a href='/test' class='button' style='text-decoration: none; display: inline-block;'>Test Keyboard</a>";
+  
+  // Add WiFi reset button only if in STA mode
+  if (isSTAMode && wifiConnected) {
+    html += "<button onclick='resetWiFi()' class='button button-danger' style='margin: 10px;'>Reset WiFi Settings</button>";
+  }
+  
+  html += "</div>";
   
   // Last update info
   html += "<div style='text-align: center; color: #6c757d; font-size: 12px;'>"
@@ -604,6 +612,20 @@ void handleRoot() {
           "  form.action = '/toggle-caps';"
           "  document.body.appendChild(form);"
           "  form.submit();"
+          "}"
+          ""
+          "function resetWiFi() {"
+          "  if(confirm('Are you sure you want to reset WiFi settings?\\n\\nThis will:'"
+          "    + '\\n• Delete saved WiFi credentials'"
+          "    + '\\n• Restart ESP32'"
+          "    + '\\n• Return to AP mode for WiFi setup'"
+          "    + '\\n\\nThis action cannot be undone!')) {"
+          "    var form = document.createElement('form');"
+          "    form.method = 'POST';"
+          "    form.action = '/reset-wifi';"
+          "    document.body.appendChild(form);"
+          "    form.submit();"
+          "  }"
           "}"
           "</script>";
   
@@ -818,6 +840,15 @@ void handleToggleCaps() {
   server.send(303);
 }
 
+// Handle captive portal - redirect all requests to WiFi setup
+void handleCaptivePortal() {
+  Serial.println("Captive portal triggered - redirecting to WiFi setup");
+  
+  // Send redirect response to WiFi setup page
+  server.sendHeader("Location", "http://192.168.1.1/", true);
+  server.send(302, "text/plain", "");
+}
+
 // Handle WiFi setup form
 void handleSetupWiFi() {
   if (server.hasArg("ssid") && server.hasArg("password")) {
@@ -868,6 +899,51 @@ void handleSetupWiFi() {
   } else {
     server.send(400, "text/html", "<html><body><h1>Error</h1><p>Missing SSID or password!</p><a href='/'>Back</a></body></html>");
   }
+}
+
+// Handle WiFi reset request
+void handleResetWiFi() {
+  Serial.println("=== WIFI RESET REQUESTED ===");
+  Serial.println("Deleting saved WiFi credentials...");
+  
+  // Remove WiFi credentials from Preferences
+  preferences.remove("wifi_ssid");
+  preferences.remove("wifi_password");
+  
+  // Clear variables
+  savedSSID = "";
+  savedPassword = "";
+  
+  Serial.println("WiFi credentials deleted. ESP32 will restart and return to AP mode.");
+  
+  // Send confirmation page
+  String html = "<html><head>"
+                "<style>"
+                "body { font-family: Arial, sans-serif; margin: 40px; background: #f5f5f5; text-align: center; }"
+                ".container { max-width: 600px; margin: 0 auto; background: white; padding: 40px; border-radius: 15px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); }"
+                ".warning { background: #fff3cd; border: 1px solid #ffc107; padding: 20px; border-radius: 10px; margin: 30px 0; }"
+                ".info { background: #e7f3ff; border: 1px solid #17a2b8; padding: 20px; border-radius: 10px; margin: 30px 0; }"
+                "</style>"
+                "</head><body>"
+                "<div class='container'>"
+                "<h1>WiFi Settings Reset</h1>"
+                "<div class='warning'>"
+                "<p><strong>WiFi credentials have been deleted!</strong></p>"
+                "</div>"
+                "<div class='info'>"
+                "<p>ESP32 will now restart and return to Access Point mode.</p>"
+                "<p><strong>AP Name:</strong> " + String(apSSID) + "</p>"
+                "<p><strong>AP IP:</strong> " + apIP.toString() + "</p>"
+                "<p>Please wait for ESP32 to restart...</p>"
+                "</div>"
+                "</div>"
+                "</body></html>";
+  
+  server.send(200, "text/html", html);
+  
+  // Restart ESP32 after 3 seconds to return to AP mode
+  delay(3000);
+  ESP.restart();
 }
 
 // Test keyboard
@@ -955,13 +1031,14 @@ void setup() {
       server.on("/stop-record", HTTP_POST, handleStopRecord);
       server.on("/play-macro", HTTP_POST, handlePlayMacro);
       server.on("/stop-playing", HTTP_POST, handleStopPlaying);
-      server.on("/toggle-caps", HTTP_POST, handleToggleCaps);
-      server.on("/clear-macro", HTTP_POST, handleClearMacro);
-      server.on("/setup-wifi", HTTP_POST, handleSetupWiFi);
-      server.on("/hardware-reset", handleHardwareReset);
-      server.on("/soft-reset", handleSoftReset);
-      server.on("/test", handleTest);
-      server.begin();
+          server.on("/toggle-caps", HTTP_POST, handleToggleCaps);
+    server.on("/clear-macro", HTTP_POST, handleClearMacro);
+    server.on("/setup-wifi", HTTP_POST, handleSetupWiFi);
+    server.on("/reset-wifi", HTTP_POST, handleResetWiFi);
+    server.on("/hardware-reset", handleHardwareReset);
+    server.on("/soft-reset", handleSoftReset);
+    server.on("/test", handleTest);
+    server.begin();
       
     } else {
       Serial.println("WiFi connection failed! Starting AP mode for setup.");
@@ -971,6 +1048,7 @@ void setup() {
       // Setup web server routes for AP mode (WiFi setup)
       server.on("/", handleWiFiSetup);
       server.on("/setup-wifi", HTTP_POST, handleSetupWiFi);
+      server.onNotFound(handleCaptivePortal);
       server.begin();
     }
     
@@ -981,6 +1059,7 @@ void setup() {
     // Setup web server routes for AP mode (WiFi setup)
     server.on("/", handleWiFiSetup);
     server.on("/setup-wifi", HTTP_POST, handleSetupWiFi);
+    server.onNotFound(handleCaptivePortal);
     server.begin();
   }
   
