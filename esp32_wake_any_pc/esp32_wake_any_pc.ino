@@ -16,6 +16,7 @@ unsigned long startTime = 0;
 unsigned long lastActivity = 0;
 unsigned long wifiConnectStartTime = 0;
 bool wifiConnected = false;
+bool capsLockMode = false;
 
 // Macro recording variables
 Preferences preferences;
@@ -165,7 +166,41 @@ void handleRoot() {
   html += "<div class='keyboard'>"
           "<h3 style='text-align: center; margin-bottom: 36px;'>Virtual QWERTY Keyboard</h3>";
   
-  // Row 1: Numbers
+  // Row 1: Special characters above numbers
+  html += "<div class='keyboard-row'>";
+  html += "<button class='key' onclick='sendKey(\"!\")'";
+  if (!keyboardReady) html += " disabled class='key key-disabled'";
+  html += ">!</button>";
+  html += "<button class='key' onclick='sendKey(\"@\")'";
+  if (!keyboardReady) html += " disabled class='key key-disabled'";
+  html += ">@</button>";
+  html += "<button class='key' onclick='sendKey(\"#\")'";
+  if (!keyboardReady) html += " disabled class='key key-disabled'";
+  html += ">#</button>";
+  html += "<button class='key' onclick='sendKey(\"$\")'";
+  if (!keyboardReady) html += " disabled class='key key-disabled'";
+  html += ">$</button>";
+  html += "<button class='key' onclick='sendKey(\"%\")'";
+  if (!keyboardReady) html += " disabled class='key key-disabled'";
+  html += ">%</button>";
+  html += "<button class='key' onclick='sendKey(\"^\")'";
+  if (!keyboardReady) html += " disabled class='key key-disabled'";
+  html += ">^</button>";
+  html += "<button class='key' onclick='sendKey(\"&\")'";
+  if (!keyboardReady) html += " disabled class='key key-disabled'";
+  html += ">&</button>";
+  html += "<button class='key' onclick='sendKey(\"*\")'";
+  if (!keyboardReady) html += " disabled class='key key-disabled'";
+  html += ">*</button>";
+  html += "<button class='key' onclick='sendKey(\"(\")'";
+  if (!keyboardReady) html += " disabled class='key key-disabled'";
+  html += ">(</button>";
+  html += "<button class='key' onclick='sendKey(\")\")'";
+  if (!keyboardReady) html += " disabled class='key key-disabled'";
+  html += ">)</button>";
+  html += "</div>";
+  
+  // Row 2: Numbers
   html += "<div class='keyboard-row'>";
   for (char c = '1'; c <= '9'; c++) {
     html += "<button class='key' onclick='sendKey(\"" + String(c) + "\")'";
@@ -278,6 +313,15 @@ void handleRoot() {
   html += "<button class='key key-enter' onclick='sendKey(\"ENTER\")'";
   if (!keyboardReady) html += " disabled class='key key-disabled'";
   html += ">↵</button>";
+  html += "</div>";
+  
+  // Row 6: Caps Lock and additional controls
+  html += "<div class='keyboard-row'>";
+  String capsLockClass = capsLockMode ? "key key-enter" : "key key-special";
+  String capsLockText = capsLockMode ? "CAPS ON" : "CAPS";
+  html += "<button class='" + capsLockClass + "' onclick='toggleCapsLock()'";
+  if (!keyboardReady) html += " disabled class='key key-disabled'";
+  html += ">" + capsLockText + "</button>";
   html += "</div>";
   
   html += "</div>";
@@ -428,6 +472,14 @@ void handleRoot() {
           "  document.body.appendChild(form);"
           "    form.submit();"
           "}"
+          ""
+          "function toggleCapsLock() {"
+          "  var form = document.createElement('form');"
+          "  form.method = 'POST';"
+          "  form.action = '/toggle-caps';"
+          "  document.body.appendChild(form);"
+          "  form.submit();"
+          "}"
           "</script>";
   
   html += "</div></body></html>";
@@ -455,9 +507,15 @@ void handlePress() {
       Keyboard.release(' ');
       Serial.println("Space key sent successfully");
     } else {
-      // Regular character
-      Keyboard.write(key.charAt(0));
-      Serial.println("Key '" + key + "' sent successfully");
+      // Regular character - apply Caps Lock if enabled
+      char keyChar = key.charAt(0);
+      if (capsLockMode && keyChar >= 'a' && keyChar <= 'z') {
+        // Convert to uppercase for Caps Lock mode
+        keyChar = keyChar - 32; // ASCII conversion: 'a'=97, 'A'=65
+        Serial.println("Caps Lock ON - Sending uppercase: " + String(keyChar));
+      }
+      Keyboard.write(keyChar);
+      Serial.println("Key '" + String(keyChar) + "' sent successfully");
     }
     
     // Record the key if recording is active
@@ -625,6 +683,16 @@ void handleStopPlaying() {
   server.send(303);
 }
 
+// Toggle Caps Lock mode
+void handleToggleCaps() {
+  capsLockMode = !capsLockMode;
+  String status = capsLockMode ? "ON" : "OFF";
+  Serial.println("=== CAPS LOCK TOGGLED: " + status + " ===");
+  
+  server.sendHeader("Location", "/?caps=" + status);
+  server.send(303);
+}
+
 // Test keyboard
 bool testKeyboard() {
   Serial.println("Testing keyboard functionality...");
@@ -700,6 +768,7 @@ void setup() {
     server.on("/stop-record", HTTP_POST, handleStopRecord);
     server.on("/play-macro", HTTP_POST, handlePlayMacro);
     server.on("/stop-playing", HTTP_POST, handleStopPlaying);
+    server.on("/toggle-caps", HTTP_POST, handleToggleCaps);
     server.on("/clear-macro", HTTP_POST, handleClearMacro);
     server.on("/hardware-reset", handleHardwareReset);
     server.on("/soft-reset", handleSoftReset);
