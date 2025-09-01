@@ -2,7 +2,7 @@
 
 A powerful ESP32-S2 project that provides a web-based interface to control a USB HID keyboard with hardware reset capabilities. This project is specifically designed to solve USB HID issues that commonly occur when MacBooks go to sleep and wake up.
 
-![ESP32 Wake Any PC from Sleep Mode](screenshot.png)
+![ESP32 Wake Any PC from Sleep Mode](screenshot.png?v=2)
 
 ## Features
 
