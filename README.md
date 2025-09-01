@@ -10,8 +10,10 @@ A powerful ESP32-S2 project that provides a web-based interface to control a USB
 - **USB HID Keyboard Emulation**: Send keyboard inputs to connected computers
 - **Hardware Reset Capability**: Complete ESP32 restart when USB gets stuck
 - **WiFi Configuration**: Easy setup and monitoring via web interface
+- **Access Point Mode**: Automatic WiFi setup with captive portal
 - **Real-time Status Monitoring**: Live updates of WiFi, USB, and keyboard status
 - **Auto-recovery**: Automatic reconnection after hardware resets
+- **Persistent Storage**: WiFi credentials saved in flash memory
 
 ## Hardware Requirements
 
@@ -68,21 +70,24 @@ A powerful ESP32-S2 project that provides a web-based interface to control a USB
 2. Create a new folder named `esp32_wake_any_pc`
 3. Place the `.ino` file inside this folder
 
-### Step 2: Configure WiFi Settings
-1. **Copy the example configuration file:**
-   ```bash
-   cp wifi_config_example.h wifi_config.h
-   ```
+### Step 2: Configure WiFi Settings via Access Point Mode
 
-2. **Edit `wifi_config.h` with your actual WiFi credentials:**
-   ```cpp
-   const char* ssid = "your_actual_wifi_name";
-   const char* password = "your_actual_wifi_password";
-   ```
+The ESP32-S2 will automatically create an Access Point (AP) for WiFi configuration when first powered on or when no WiFi credentials are saved.
 
-3. **Save the file** - this file contains your sensitive WiFi information
+1. **Power on your ESP32-S2** - it will automatically start in AP mode
+2. **Connect to ESP32's WiFi network:**
+   - Network Name: `WakeAnyPCEsp32`
+   - Password: None (open network)
+3. **Access the setup page:**
+   - Your device will automatically open the WiFi setup page
+   - Or manually navigate to: `http://192.168.1.1`
+4. **Enter your WiFi credentials:**
+   - WiFi Network Name (SSID)
+   - WiFi Password
+5. **Click "Connect to WiFi"** - ESP32 will save credentials and restart
+6. **ESP32 will automatically connect** to your WiFi network
 
-**Note**: The `wifi_config.h` file is automatically ignored by git to protect your credentials
+**Note**: AP mode automatically creates a captive portal that redirects all web requests to the WiFi setup page
 
 ### Step 3: Install Required Libraries
 The project uses these built-in libraries (no additional installation needed):
@@ -91,6 +96,8 @@ The project uses these built-in libraries (no additional installation needed):
 - `USB.h` - USB functionality
 - `USBHIDKeyboard.h` - HID keyboard emulation
 - `esp_sleep.h` - Sleep management
+- `Preferences.h` - Persistent storage for WiFi credentials
+- `DNSServer.h` - Captive portal functionality
 
 ## Building and Flashing
 
@@ -146,6 +153,23 @@ When your MacBook wakes up and the keyboard doesn't work:
 3. Wait 10-15 seconds for ESP32 to restart
 4. Try **"Send A Key"** - should work now!
 
+## WiFi Management
+
+### Changing WiFi Settings
+If you need to change WiFi credentials or connect to a different network:
+
+1. **Access the web interface** when ESP32 is connected to WiFi
+2. **Click "Reset WiFi Settings"** button
+3. **Confirm the action** - this will delete saved credentials
+4. **ESP32 will restart** and return to AP mode
+5. **Follow the AP mode setup** again with new credentials
+
+### AP Mode Features
+- **Automatic Setup**: No manual configuration files needed
+- **Captive Portal**: Automatically redirects to setup page
+- **Persistent Storage**: Credentials saved in ESP32's flash memory
+- **Easy Reset**: One-click WiFi reset from web interface
+
 ## Troubleshooting
 
 ### Common Issues
@@ -161,8 +185,9 @@ When your MacBook wakes up and the keyboard doesn't work:
 - **Linux**: May need to add user to dialout group
 
 #### WiFi Connection Issues
-- **Solution**: Check WiFi credentials in the code
+- **Solution**: Use AP mode to reconfigure WiFi settings
 - **Alternative**: Ensure 2.4GHz WiFi (ESP32-S2 doesn't support 5GHz)
+- **AP Mode**: If ESP32 starts in AP mode, connect to `WakeAnyPCEsp32` network and access `192.168.1.1`
 
 #### Keyboard Not Working
 - **Solution**: Use **"Hardware Reset ESP32"** button
@@ -218,6 +243,7 @@ For issues and questions:
 - **v1.0.0**: Initial release with basic keyboard functionality
 - **v1.1.0**: Added hardware reset capability
 - **v1.2.0**: Enhanced web interface and monitoring
+- **v1.3.0**: Added Access Point mode for easy WiFi setup
 
 ---
 
