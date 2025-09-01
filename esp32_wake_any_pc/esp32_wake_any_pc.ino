@@ -24,6 +24,25 @@ int currentKeyIndex = 0;
 unsigned long lastKeyTime = 0;
 const int KEY_DELAY = 100; // Delay between keys when playing back
 
+// Helper function to create mask string
+String createMask(const char* text) {
+  String mask = "";
+  int len = strlen(text);
+  for (int i = 0; i < len; i++) {
+    mask += "*";
+  }
+  return mask;
+}
+
+// Overload for String type
+String createMask(const String& text) {
+  String mask = "";
+  for (int i = 0; i < text.length(); i++) {
+    mask += "*";
+  }
+  return mask;
+}
+
 void handleRoot() {
   String wifiStatus = WiFi.status() == WL_CONNECTED ? "Connected" : "Disconnected";
   String usbStatus = usbConnected ? "Connected" : "Disconnected";
@@ -72,6 +91,11 @@ void handleRoot() {
                 ".key-backspace:hover { background: #c82333; }"
                 ".key-disabled { background: #e9ecef; color: #adb5bd; cursor: not-allowed; }"
                 ".key-disabled:hover { background: #e9ecef; transform: none; box-shadow: none; }"
+                ".sensitive-info { position: relative; }"
+                ".sensitive-info .hidden { color: transparent; user-select: none; }"
+                ".sensitive-info:hover .hidden { color: inherit; }"
+                ".sensitive-info .mask { position: absolute; top: 0; left: 0; color: #495057; }"
+                ".sensitive-info:hover .mask { display: none; }"
                 "</style>"
                 "</head><body>"
                 "<div class='container'>"
@@ -106,8 +130,14 @@ void handleRoot() {
   String wifiClass = (WiFi.status() == WL_CONNECTED) ? "status-ok" : "status-error";
   html += "<div class='" + wifiClass + "'>"
           "<strong>WiFi Status:</strong> " + wifiStatus + "<br>"
-          "<strong>SSID:</strong> " + String(ssid) + "<br>"
-          "<strong>IP Address:</strong> " + WiFi.localIP().toString() + "<br>"
+          "<strong>SSID:</strong> <span class='sensitive-info'>"
+          "<span class='hidden'>" + String(ssid) + "</span>"
+          "<span class='mask'>" + createMask(ssid) + "</span>"
+          "</span><br>"
+          "<strong>IP Address:</strong> <span class='sensitive-info'>"
+          "<span class='hidden'>" + WiFi.localIP().toString() + "</span>"
+          "<span class='mask'>" + createMask(WiFi.localIP().toString()) + "</span>"
+          "</span><br>"
           "<strong>Signal:</strong> " + String(WiFi.RSSI()) + " dBm"
           "</div>";
   
@@ -123,6 +153,11 @@ void handleRoot() {
           "</div>";
   
   html += "</div>";
+  
+  // Hover hint for sensitive information
+  html += "<div style='text-align: center; color: #6c757d; font-size: 12px; margin: 10px 0;'>"
+          "<em>Hover over SSID and IP to reveal sensitive information</em>"
+          "</div>";
   
   // QWERTY Keyboard
   html += "<div class='keyboard'>"
@@ -453,11 +488,36 @@ void handleHardwareReset() {
   Serial.println("Preparing to restart ESP32 completely...");
   
   // Send notification before restart
-  String html = "<html><body>"
+  String html = "<html><head>"
+                "<style>"
+                "body { font-family: Arial, sans-serif; margin: 40px; background: #f5f5f5; text-align: center; }"
+                ".container { max-width: 600px; margin: 0 auto; background: white; padding: 40px; border-radius: 15px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); }"
+                ".status { background: #fff3cd; border: 1px solid #ffc107; padding: 20px; border-radius: 10px; margin: 30px 0; }"
+                ".button { display: inline-block; padding: 15px 30px; font-size: 18px; background: #007bff; color: white; text-decoration: none; border-radius: 8px; margin: 20px 10px; transition: background 0.3s; }"
+                ".button:hover { background: #0056b3; }"
+                ".button-danger { background: #dc3545; }"
+                ".button-danger:hover { background: #c82333; }"
+                ".info { background: #e7f3ff; border: 1px solid #17a2b8; padding: 20px; border-radius: 10px; margin: 30px 0; }"
+                "</style>"
+                "</head><body>"
+                "<div class='container'>"
                 "<h1>ESP32 Restarting...</h1>"
-                "<p>ESP32 is restarting completely. This will take 10-15 seconds.</p>"
-                "<p>Please wait and refresh the page.</p>"
-                "<p><strong>This is equivalent to unplugging and plugging back USB!</strong></p>"
+                "<div class='status'>"
+                "<p><strong>ESP32 is restarting completely.</strong></p>"
+                "<p>This will take 10-15 seconds.</p>"
+                "</div>"
+                "<div class='info'>"
+                "<p><strong>What's happening:</strong></p>"
+                "<p>ESP32 is performing a complete hardware reset</p>"
+                "<p>This is equivalent to unplugging and plugging back USB</p>"
+                "<p>WiFi connection will be re-established automatically</p>"
+                "</div>"
+                "<div style='margin: 30px 0;'>"
+                "<a href='/' class='button'>Back to Home</a>"
+                "<a href='javascript:location.reload()' class='button button-danger'>Refresh Page</a>"
+                "</div>"
+                "<p style='color: #6c757d; font-size: 14px;'>After restart, use 'Back to Home' to return to the main interface</p>"
+                "</div>"
                 "</body></html>";
   
   server.send(200, "text/html", html);
