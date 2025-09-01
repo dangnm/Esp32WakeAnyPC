@@ -4,9 +4,10 @@
 #include "USBHIDKeyboard.h"
 #include "esp_sleep.h"
 #include "Preferences.h"
-#include "wifi_config.h"
+#include "DNSServer.h"
 
 WebServer server(80);
+DNSServer dnsServer;
 USBHIDKeyboard Keyboard;
 
 // Tracking variables
@@ -17,6 +18,17 @@ unsigned long lastActivity = 0;
 unsigned long wifiConnectStartTime = 0;
 bool wifiConnected = false;
 bool capsLockMode = false;
+
+// WiFi mode variables
+bool isAPMode = false;
+bool isSTAMode = false;
+String savedSSID = "";
+String savedPassword = "";
+const char* apSSID = "WakeAnyPCEsp32";
+const char* apPassword = ""; // No password for AP
+const IPAddress apIP(192, 168, 1, 1);
+const IPAddress apGateway(192, 168, 1, 1);
+const IPAddress apSubnet(255, 255, 255, 0);
 
 // Macro recording variables
 Preferences preferences;
@@ -44,6 +56,113 @@ String createMask(const String& text) {
     mask += "*";
   }
   return mask;
+}
+
+// Initialize AP mode for WiFi setup
+void initAPMode() {
+  Serial.println("=== INITIALIZING AP MODE ===");
+  
+  // Configure AP
+  WiFi.mode(WIFI_AP);
+  WiFi.softAPConfig(apIP, apGateway, apSubnet);
+  WiFi.softAP(apSSID, apPassword);
+  
+  // Start DNS server for captive portal
+  dnsServer.start(53, "*", apIP);
+  
+  isAPMode = true;
+  isSTAMode = false;
+  
+  Serial.println("AP Mode initialized:");
+  Serial.println("SSID: " + String(apSSID));
+  Serial.println("IP: " + apIP.toString());
+  Serial.println("Connect to WiFi: " + String(apSSID));
+  Serial.println("Then visit: http://192.168.1.1");
+}
+
+// Initialize STA mode with saved credentials
+void initSTAMode() {
+  Serial.println("=== INITIALIZING STA MODE ===");
+  
+  if (savedSSID.length() > 0 && savedPassword.length() > 0) {
+    Serial.println("Attempting to connect with saved credentials:");
+    Serial.println("SSID: " + savedSSID);
+    Serial.println("Password: [HIDDEN]");
+    
+    WiFi.mode(WIFI_STA);
+    WiFi.begin(savedSSID.c_str(), savedPassword.c_str());
+    
+    isAPMode = false;
+    isSTAMode = true;
+    wifiConnectStartTime = millis();
+    
+  } else {
+    Serial.println("No saved WiFi credentials found. Starting AP mode for setup.");
+    initAPMode();
+  }
+}
+
+void handleWiFiSetup() {
+  String html = "<html><head>"
+                "<meta charset='UTF-8'>"
+                "<style>"
+                "body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }"
+                ".container { max-width: 600px; margin: 0 auto; background: white; padding: 30px; border-radius: 15px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); }"
+                ".header { text-align: center; margin-bottom: 30px; }"
+                ".setup-form { background: #f8f9fa; padding: 25px; border-radius: 10px; margin: 20px 0; }"
+                ".form-group { margin: 20px 0; }"
+                ".form-group label { display: block; margin-bottom: 8px; font-weight: bold; color: #495057; }"
+                ".form-group input { width: 100%; padding: 12px; border: 1px solid #ced4da; border-radius: 8px; font-size: 16px; box-sizing: border-box; }"
+                ".submit-btn { background: #28a745; color: white; padding: 15px 30px; border: none; border-radius: 8px; font-size: 18px; cursor: pointer; width: 100%; }"
+                ".submit-btn:hover { background: #218838; }"
+                ".info-box { background: #e7f3ff; border: 1px solid #17a2b8; padding: 20px; border-radius: 10px; margin: 20px 0; }"
+                ".steps { background: #fff3cd; border: 1px solid #ffc107; padding: 20px; border-radius: 10px; margin: 20px 0; }"
+                "</style>"
+                "</head><body>"
+                "<div class='container'>"
+                "<div class='header'>"
+                "<h1>WiFi Setup</h1>"
+                "<p>Configure ESP32 to connect to your WiFi network</p>"
+                "</div>"
+                ""
+                "<div class='info-box'>"
+                "<h3>Current Status</h3>"
+                "<p><strong>ESP32 is running in Access Point mode</strong></p>"
+                "<p><strong>AP Name:</strong> " + String(apSSID) + "</p>"
+                "<p><strong>AP IP:</strong> " + apIP.toString() + "</p>"
+                "</div>"
+                ""
+                "<div class='steps'>"
+                "<h3>Setup Steps:</h3>"
+                "<ol>"
+                "<li>Connect your device to WiFi: <strong>" + String(apSSID) + "</strong></li>"
+                "<li>Your device will get IP: <strong>192.168.1.2</strong> or similar</li>"
+                "<li>Fill in your WiFi details below</li>"
+                "<li>Click 'Connect to WiFi' to save and connect</li>"
+                "</ol>"
+                "</div>"
+                ""
+                "<div class='setup-form'>"
+                "<form method='POST' action='/setup-wifi'>"
+                "<div class='form-group'>"
+                "<label for='ssid'>WiFi Network Name (SSID):</label>"
+                "<input type='text' id='ssid' name='ssid' required placeholder='Enter your WiFi network name'>"
+                "</div>"
+                "<div class='form-group'>"
+                "<label for='password'>WiFi Password:</label>"
+                "<input type='password' id='password' name='password' required placeholder='Enter your WiFi password'>"
+                "</div>"
+                "<button type='submit' class='submit-btn'>Connect to WiFi</button>"
+                "</form>"
+                "</div>"
+                ""
+                "<div style='text-align: center; color: #6c757d; font-size: 14px; margin-top: 30px;'>"
+                "<p>After setup, ESP32 will restart and connect to your WiFi network</p>"
+                "</div>"
+                "</div>"
+                "</body></html>";
+  
+  server.send(200, "text/html", html);
 }
 
 void handleRoot() {
@@ -356,8 +475,8 @@ void handleRoot() {
   html += "<div class='" + wifiClass + "'>"
           "<strong>WiFi Status:</strong> " + wifiStatus + "<br>"
           "<strong>SSID:</strong> <span class='sensitive-info'>"
-          "<span class='hidden'>" + String(ssid) + "</span>"
-          "<span class='mask'>" + createMask(ssid) + "</span>"
+          "<span class='hidden'>" + savedSSID + "</span>"
+          "<span class='mask'>" + createMask(savedSSID) + "</span>"
           "</span><br>"
           "<strong>IP Address:</strong> <span class='sensitive-info'>"
           "<span class='hidden'>" + WiFi.localIP().toString() + "</span>"
@@ -699,6 +818,58 @@ void handleToggleCaps() {
   server.send(303);
 }
 
+// Handle WiFi setup form
+void handleSetupWiFi() {
+  if (server.hasArg("ssid") && server.hasArg("password")) {
+    String newSSID = server.arg("ssid");
+    String newPassword = server.arg("password");
+    
+    if (newSSID.length() > 0) {
+      // Save to Preferences
+      preferences.putString("wifi_ssid", newSSID);
+      preferences.putString("wifi_password", newPassword);
+      
+      savedSSID = newSSID;
+      savedPassword = newPassword;
+      
+      Serial.println("=== WIFI CREDENTIALS SAVED ===");
+      Serial.println("SSID: " + savedSSID);
+      Serial.println("Password: [HIDDEN]");
+      
+      // Send success page
+      String html = "<html><head>"
+                    "<style>"
+                    "body { font-family: Arial, sans-serif; margin: 40px; background: #f5f5f5; text-align: center; }"
+                    ".container { max-width: 600px; margin: 0 auto; background: white; padding: 40px; border-radius: 15px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); }"
+                    ".success { background: #d4edda; border: 1px solid #28a745; padding: 20px; border-radius: 10px; margin: 30px 0; }"
+                    ".button { display: inline-block; padding: 15px 30px; font-size: 18px; background: #007bff; color: white; text-decoration: none; border-radius: 8px; margin: 20px 10px; }"
+                    "</style>"
+                    "</head><body>"
+                    "<div class='container'>"
+                    "<h1>WiFi Setup Complete!</h1>"
+                    "<div class='success'>"
+                    "<p><strong>WiFi credentials saved successfully!</strong></p>"
+                    "<p>SSID: " + savedSSID + "</p>"
+                    "<p>ESP32 will now restart and connect to your WiFi network.</p>"
+                    "</div>"
+                    "<p>Please wait for ESP32 to restart and reconnect...</p>"
+                    "</div>"
+                    "</body></html>";
+      
+      server.send(200, "text/html", html);
+      
+      // Restart ESP32 after 3 seconds to apply new WiFi settings
+      delay(3000);
+      ESP.restart();
+      
+    } else {
+      server.send(400, "text/html", "<html><body><h1>Error</h1><p>SSID cannot be empty!</p><a href='/'>Back</a></body></html>");
+    }
+  } else {
+    server.send(400, "text/html", "<html><body><h1>Error</h1><p>Missing SSID or password!</p><a href='/'>Back</a></body></html>");
+  }
+}
+
 // Test keyboard
 bool testKeyboard() {
   Serial.println("Testing keyboard functionality...");
@@ -738,7 +909,13 @@ void setup() {
   lastActivity = millis();
   
   // Initialize Preferences
-  preferences.begin("macro", false);
+  preferences.begin("esp32_wake_pc", false);
+  
+  // Load saved WiFi credentials
+  savedSSID = preferences.getString("wifi_ssid", "");
+  savedPassword = preferences.getString("wifi_password", "");
+  
+  // Load saved macro
   recordedKeys = preferences.getString("macro", "");
   if (recordedKeys.length() > 0) {
     Serial.println("Loaded saved macro: " + recordedKeys);
@@ -752,38 +929,59 @@ void setup() {
   
   Serial.println("USB HID initialized");
   
-  // Connect to WiFi
-  WiFi.begin(ssid, password);
-  wifiConnectStartTime = millis();
-  
-  int attempts = 0;
-  while (WiFi.status() != WL_CONNECTED && attempts < 30) {
-    delay(1000);
-    attempts++;
-    Serial.print("WiFi attempt " + String(attempts) + ": ");
-    Serial.println(WiFi.status());
-  }
-  
-  if (WiFi.status() == WL_CONNECTED) {
-    Serial.println("WiFi connected! IP: " + WiFi.localIP().toString());
-    wifiConnected = true;
+  // Initialize WiFi based on saved credentials
+  if (savedSSID.length() > 0 && savedPassword.length() > 0) {
+    Serial.println("Found saved WiFi credentials. Starting STA mode...");
+    initSTAMode();
     
-    server.on("/", handleRoot);
-    server.on("/press", HTTP_POST, handlePress);
-    server.on("/start-record", HTTP_POST, handleStartRecord);
-    server.on("/stop-record", HTTP_POST, handleStopRecord);
-    server.on("/play-macro", HTTP_POST, handlePlayMacro);
-    server.on("/stop-playing", HTTP_POST, handleStopPlaying);
-    server.on("/toggle-caps", HTTP_POST, handleToggleCaps);
-    server.on("/clear-macro", HTTP_POST, handleClearMacro);
-    server.on("/hardware-reset", handleHardwareReset);
-    server.on("/soft-reset", handleSoftReset);
-    server.on("/test", handleTest);
-    server.begin();
+    // Wait for WiFi connection
+    int attempts = 0;
+    while (WiFi.status() != WL_CONNECTED && attempts < 30) {
+      delay(1000);
+      attempts++;
+      Serial.print("WiFi attempt " + String(attempts) + ": ");
+      Serial.println(WiFi.status());
+    }
+    
+    if (WiFi.status() == WL_CONNECTED) {
+      Serial.println("WiFi connected! IP: " + WiFi.localIP().toString());
+      wifiConnected = true;
+      isSTAMode = true;
+      
+      // Setup web server routes for STA mode
+      server.on("/", handleRoot);
+      server.on("/press", HTTP_POST, handlePress);
+      server.on("/start-record", HTTP_POST, handleStartRecord);
+      server.on("/stop-record", HTTP_POST, handleStopRecord);
+      server.on("/play-macro", HTTP_POST, handlePlayMacro);
+      server.on("/stop-playing", HTTP_POST, handleStopPlaying);
+      server.on("/toggle-caps", HTTP_POST, handleToggleCaps);
+      server.on("/clear-macro", HTTP_POST, handleClearMacro);
+      server.on("/setup-wifi", HTTP_POST, handleSetupWiFi);
+      server.on("/hardware-reset", handleHardwareReset);
+      server.on("/soft-reset", handleSoftReset);
+      server.on("/test", handleTest);
+      server.begin();
+      
+    } else {
+      Serial.println("WiFi connection failed! Starting AP mode for setup.");
+      wifiConnected = false;
+      initAPMode();
+      
+      // Setup web server routes for AP mode (WiFi setup)
+      server.on("/", handleWiFiSetup);
+      server.on("/setup-wifi", HTTP_POST, handleSetupWiFi);
+      server.begin();
+    }
     
   } else {
-    Serial.println("WiFi connection failed! Will auto-restart in 3 minutes if connection fails.");
-    wifiConnected = false;
+    Serial.println("No saved WiFi credentials found. Starting AP mode for setup.");
+    initAPMode();
+    
+    // Setup web server routes for AP mode (WiFi setup)
+    server.on("/", handleWiFiSetup);
+    server.on("/setup-wifi", HTTP_POST, handleSetupWiFi);
+    server.begin();
   }
   
   // Initial keyboard test
@@ -797,8 +995,13 @@ void setup() {
 void loop() {
   server.handleClient();
   
-  // Check WiFi connection and auto-restart if needed
-  if (!wifiConnected) {
+  // Handle DNS server if in AP mode
+  if (isAPMode) {
+    dnsServer.processNextRequest();
+  }
+  
+  // Check WiFi connection and auto-restart if needed (only in STA mode)
+  if (isSTAMode && !wifiConnected) {
     unsigned long currentTime = millis();
     unsigned long timeSinceStart = currentTime - wifiConnectStartTime;
     
@@ -814,7 +1017,7 @@ void loop() {
     if (timeSinceStart % 10000 == 0) {
       Serial.println("Attempting WiFi reconnection...");
       WiFi.disconnect();
-      WiFi.begin(ssid, password);
+      WiFi.begin(savedSSID.c_str(), savedPassword.c_str());
       
       if (WiFi.status() == WL_CONNECTED) {
         Serial.println("WiFi reconnection successful! IP: " + WiFi.localIP().toString());
