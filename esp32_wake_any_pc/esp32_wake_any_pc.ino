@@ -14,6 +14,8 @@ bool usbConnected = false;
 bool keyboardReady = false;
 unsigned long startTime = 0;
 unsigned long lastActivity = 0;
+unsigned long wifiConnectStartTime = 0;
+bool wifiConnected = false;
 
 // Macro recording variables
 Preferences preferences;
@@ -678,6 +680,7 @@ void setup() {
   
   // Connect to WiFi
   WiFi.begin(ssid, password);
+  wifiConnectStartTime = millis();
   
   int attempts = 0;
   while (WiFi.status() != WL_CONNECTED && attempts < 30) {
@@ -689,6 +692,7 @@ void setup() {
   
   if (WiFi.status() == WL_CONNECTED) {
     Serial.println("WiFi connected! IP: " + WiFi.localIP().toString());
+    wifiConnected = true;
     
     server.on("/", handleRoot);
     server.on("/press", HTTP_POST, handlePress);
@@ -703,7 +707,8 @@ void setup() {
     server.begin();
     
   } else {
-    Serial.println("WiFi connection failed!");
+    Serial.println("WiFi connection failed! Will auto-restart in 3 minutes if connection fails.");
+    wifiConnected = false;
   }
   
   // Initial keyboard test
@@ -716,6 +721,35 @@ void setup() {
 
 void loop() {
   server.handleClient();
+  
+  // Check WiFi connection and auto-restart if needed
+  if (!wifiConnected) {
+    unsigned long currentTime = millis();
+    unsigned long timeSinceStart = currentTime - wifiConnectStartTime;
+    
+    // Auto-restart after 3 minutes (180,000 ms) if WiFi still not connected
+    if (timeSinceStart >= 180000) {
+      Serial.println("=== AUTO-RESTART DUE TO WiFi FAILURE ===");
+      Serial.println("WiFi connection failed for 3 minutes. Restarting ESP32...");
+      delay(2000); // Wait 2 seconds to send message
+      ESP.restart();
+    }
+    
+    // Try to reconnect WiFi every 10 seconds
+    if (timeSinceStart % 10000 == 0) {
+      Serial.println("Attempting WiFi reconnection...");
+      WiFi.disconnect();
+      WiFi.begin(ssid, password);
+      
+      if (WiFi.status() == WL_CONNECTED) {
+        Serial.println("WiFi reconnection successful! IP: " + WiFi.localIP().toString());
+        wifiConnected = true;
+        wifiConnectStartTime = millis(); // Reset timer
+      } else {
+        Serial.println("WiFi reconnection failed. Will retry in 10 seconds.");
+      }
+    }
+  }
   
   // Handle macro playback
   if (isPlaying && recordedKeys.length() > 0 && currentKeyIndex < recordedKeys.length()) {
