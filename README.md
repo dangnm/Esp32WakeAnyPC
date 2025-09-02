@@ -20,6 +20,7 @@ A powerful ESP32-S2 project that provides a web-based interface to control a USB
 - **ESP32-S2 Development Board** (with USB-C or micro USB port)
 - **USB Cable** (USB-C to USB-A or micro USB to USB-A)
 - **Computer** (Windows, macOS, or Linux)
+- **3D Printed Case** (optional): [Download STL files](https://www.thingiverse.com/thing:7134269/files)
 
 <img src="esp32s2.jpg" alt="ESP32-S2 Development Board" width="30%" />
 

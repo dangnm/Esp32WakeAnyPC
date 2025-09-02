@@ -91,6 +91,9 @@ void initSTAMode() {
     
     WiFi.mode(WIFI_STA);
     WiFi.begin(savedSSID.c_str(), savedPassword.c_str());
+    WiFi.setSleep(false);
+    WiFi.setAutoReconnect(true);
+    WiFi.setHostname("ESP32-WakeAnyPC");
     
     isAPMode = false;
     isSTAMode = true;
